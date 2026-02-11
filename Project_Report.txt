@@ -1,0 +1,1461 @@
+
+VEHICLE SERVICE RECORD DATABASE
+
+21CSC205P Database Management Systems
+
+A MINI PROJECT REPORT
+
+Submitted by
+
+STUDENT1 NAME [REG NUM]
+STUDENT2 NAME [REG NUM]
+
+Under the Guidance of
+
+(GUIDE NAME)
+(Designation, Department)
+
+in partial fulfillment of the requirements for the degree of
+
+BACHELOR OF TECHNOLOGY
+in
+COMPUTER SCIENCE ENGINEERING
+with specialization in (SPECIALIZATION NAME)
+
+DEPARTMENT OF NETWORKING AND COMMUNICATIONS
+SCHOOL OF COMPUTING
+COLLEGE OF ENGINEERING AND TECHNOLOGY
+SRM INSTITUTE OF SCIENCE AND TECHNOLOGY
+KATTANKULATHUR – 603 203
+
+MAY 2026
+
+
+================================================================================
+BONAFIDE CERTIFICATE
+================================================================================
+
+Certified that Project report titled "Vehicle Service Record Database" is the
+bonafide work of "STUDENT1 NAME [REG NUM], STUDENT2 NAME [REG NUM]" who carried
+out the 21CSC205P Database Management Systems mini project work under my
+supervision.
+
+
+================================================================================
+ABSTRACT
+================================================================================
+
+The Vehicle Service Record Database is a full-stack web application designed to
+manage and track vehicle service records, appointments, and support tickets for
+both bikes and cars. The system provides role-based access for administrators
+and customers. Administrators can add, edit, and delete vehicles, manage
+service records (maintenance, inspections, repairs), handle appointments, and
+resolve support tickets. Customers can search for their vehicles by brand,
+model, and vehicle ID, view their service history, book appointments, and raise
+support tickets.
+
+The backend is built using Node.js with Express.js framework and Sequelize ORM,
+connected to a Neon PostgreSQL cloud database. The frontend uses HTML5, CSS3,
+and Vanilla JavaScript with asynchronous REST API calls. The database consists
+of five normalized relational tables: users, vehicles, service_records,
+appointments, and tickets, with proper foreign key relationships and constraints.
+
+Key features include vehicle-type filtering (Bike/Car), cost tracking with
+properly formatted currency display, role-based dashboards, and a responsive
+beige and dark grey themed UI.
+
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+Chapter No. | Title
+------------|--------------------------------------------------------------
+            | ABSTRACT
+1           | Problem Understanding, Identification of Entity and
+            | Relationships, Construction of DB Using ER Model
+2           | Design of Relational Schemas, Creation of Database and Tables
+3           | Complex Queries Based on Constraints, Sets, Joins, Views,
+            | Triggers and Cursors
+4           | Analyzing the Pitfalls, Identifying the Dependencies, and
+            | Applying Normalizations
+5           | Implementation of Concurrency Control and Recovery Mechanisms
+6           | Front-End and Back-End Code
+7           | Results and Discussions
+
+
+================================================================================
+CHAPTER 1
+PROBLEM UNDERSTANDING, IDENTIFICATION OF ENTITY AND RELATIONSHIPS,
+CONSTRUCTION OF DB USING ER MODEL FOR THE VEHICLE SERVICE RECORD DATABASE
+================================================================================
+
+1.1 Introduction
+----------------
+The Vehicle Service Record Database project addresses the need for a centralized
+digital system to manage vehicle maintenance and service history. Traditional
+paper-based methods of tracking vehicle services are error-prone, inefficient,
+and difficult to search. This project provides a web-based solution where
+service centres can maintain comprehensive digital records of all vehicle
+services, and customers can conveniently check their vehicle service status.
+
+The application supports two types of vehicles — Bikes and Cars — with 45
+vehicles pre-loaded (40 bikes from 8 major Indian brands and 5 cars from 3
+brands). It implements role-based access control with Admin and Customer portals.
+
+1.2 Motivation
+--------------
+- Manual record-keeping leads to data loss and retrieval difficulties
+- Customers need real-time access to their vehicle service history
+- Service centres require efficient tracking of appointments and support tickets
+- Need for digital transformation in the Indian automotive service industry
+
+1.3 Scope
+---------
+- Multi-vehicle support (Bikes and Cars)
+- Role-based access (Admin and Customer portals)
+- CRUD operations for vehicles, service records, appointments, and tickets
+- Real-time dashboard with statistics
+- Vehicle-type filtering across all sections
+- Cloud-hosted PostgreSQL database (Neon)
+
+1.4 Problem Statement
+---------------------
+Design and implement a relational database system for vehicle service record
+management that supports multiple vehicle types, role-based user access, service
+history tracking, appointment scheduling, and customer support ticketing, with a
+web-based frontend for interaction.
+
+1.5 Project Requirements
+------------------------
+Functional Requirements:
+  - User authentication with role-based access (Admin/Customer)
+  - Vehicle management (Add, Edit, Delete, Search)
+  - Service record tracking (Maintenance, Inspection, Repair with cost, mileage,
+    technician, spares details)
+  - Appointment booking and status management
+  - Ticket/Query system for customer support
+  - Dashboard with statistics and quick overview
+
+Non-Functional Requirements:
+  - Responsive web design
+  - Cloud-hosted database for availability
+  - RESTful API architecture
+  - Secure session management
+
+Technology Stack:
+  - Backend: Node.js, Express.js, Sequelize ORM
+  - Database: PostgreSQL (Neon Cloud)
+  - Frontend: HTML5, CSS3, Vanilla JavaScript
+  - Tools: npm, dotenv, cors
+
+1.6 Identification of Entity and Relationships
+-----------------------------------------------
+
+Entities Identified:
+  1. User       — stores admin and customer credentials and roles
+  2. Vehicle    — stores bike and car details (type, brand, model, vehicle_id)
+  3. ServiceRecord — stores service history for each vehicle
+  4. Appointment — stores service appointment bookings
+  5. Ticket     — stores customer support queries/issues
+
+Relationships:
+  - Vehicle (1) ----< (M) ServiceRecord     [One vehicle has many service records]
+  - Vehicle (1) ----< (M) Appointment       [One vehicle has many appointments]
+  - Vehicle (1) ----< (M) Ticket            [One vehicle has many tickets]
+  - User    (1) ----< (M) Appointment       [One user books many appointments]
+  - User    (1) ----< (M) Ticket            [One user raises many tickets]
+
+1.7 Construction of DB Using ER Model
+--------------------------------------
+
+ER Diagram Description:
+
+The ER diagram consists of five entity sets:
+
+[User] ——— (user_id PK, username, password, full_name, role)
+  |
+  |——< [Appointment] ——— (id PK, vehicle_id FK, user_id FK, appointment_date,
+  |                        notes, status, created_at)
+  |
+  |——< [Ticket] ——— (id PK, vehicle_id FK, user_id FK, issue, status, created_at)
+
+[Vehicle] ——— (id PK, type, brand, model, vehicle_id)
+  |
+  |——< [ServiceRecord] ——— (id PK, vehicle_id FK, service_type, service_date,
+  |                          service_interval, mileage, next_service_date,
+  |                          description, cost, technician_name, spares_changed,
+  |                          notes)
+  |
+  |——< [Appointment] (FK: vehicle_id)
+  |
+  |——< [Ticket] (FK: vehicle_id)
+
+Figure 1.1: ER Diagram for Vehicle Service Record Database
+
+
+================================================================================
+CHAPTER 2
+DESIGN OF RELATIONAL SCHEMAS, CREATION OF DATABASE AND TABLES
+FOR VEHICLE SERVICE RECORD DATABASE
+================================================================================
+
+2.1 Relational Schema for Vehicle Service Record Database
+----------------------------------------------------------
+
+users (id PK, username UNIQUE, password, full_name, role)
+vehicles (id PK, type, brand, model, vehicle_id UNIQUE)
+service_records (id PK, vehicle_id FK→vehicles, service_type, service_date,
+                 service_interval, mileage, next_service_date, description,
+                 cost, technician_name, spares_changed, notes)
+appointments (id PK, vehicle_id FK→vehicles, user_id FK→users,
+              appointment_date, notes, status, created_at)
+tickets (id PK, vehicle_id FK→vehicles, user_id FK→users, issue, status,
+         created_at)
+
+Figure 2.1: Relational Schema for Vehicle Service Record Database
+
+The figure 2.1 depicts the relational schema for the Vehicle Service Record
+Database. The schema consists of 5 tables interconnected through foreign keys.
+The vehicles table is the central entity, linked to service_records,
+appointments, and tickets. Both appointments and tickets also reference the
+users table through user_id foreign key, establishing a many-to-one relationship.
+
+2.2 Description of Tables
+--------------------------
+
+Table 2.1: Users Schema
++-------------+---------------+------+-------------+
+| Attribute   | Data Type     | Size | Constraints  |
++-------------+---------------+------+-------------+
+| id          | SERIAL        | -    | PRIMARY KEY  |
+| username    | VARCHAR       | 100  | UNIQUE, NOT NULL |
+| password    | VARCHAR       | 255  | NOT NULL     |
+| full_name   | VARCHAR       | 255  | NOT NULL     |
+| role        | VARCHAR       | 50   | DEFAULT 'customer' |
++-------------+---------------+------+-------------+
+
+Table 2.2: Vehicles Schema
++-------------+---------------+------+-------------+
+| Attribute   | Data Type     | Size | Constraints  |
++-------------+---------------+------+-------------+
+| id          | SERIAL        | -    | PRIMARY KEY  |
+| type        | VARCHAR       | 50   | NOT NULL     |
+| brand       | VARCHAR       | 100  | NOT NULL     |
+| model       | VARCHAR       | 100  | NOT NULL     |
+| vehicle_id  | VARCHAR       | 100  | UNIQUE, NOT NULL |
++-------------+---------------+------+-------------+
+
+Table 2.3: Service Records Schema
++-----------------+---------------+------+---------------------+
+| Attribute       | Data Type     | Size | Constraints         |
++-----------------+---------------+------+---------------------+
+| id              | SERIAL        | -    | PRIMARY KEY         |
+| vehicle_id      | INTEGER       | -    | FK → vehicles(id)   |
+| service_type    | VARCHAR       | 100  | -                   |
+| service_date    | DATE          | -    | -                   |
+| service_interval| VARCHAR       | 100  | -                   |
+| mileage         | INTEGER       | -    | -                   |
+| next_service_date| DATE         | -    | -                   |
+| description     | TEXT          | -    | -                   |
+| cost            | NUMERIC(10,2) | -   | DEFAULT 0           |
+| technician_name | VARCHAR       | 255  | -                   |
+| spares_changed  | TEXT          | -    | -                   |
+| notes           | TEXT          | -    | -                   |
++-----------------+---------------+------+---------------------+
+
+Table 2.4: Appointments Schema
++------------------+---------------+------+---------------------+
+| Attribute        | Data Type     | Size | Constraints         |
++------------------+---------------+------+---------------------+
+| id               | SERIAL        | -    | PRIMARY KEY         |
+| vehicle_id       | INTEGER       | -    | FK → vehicles(id)   |
+| user_id          | INTEGER       | -    | FK → users(id)      |
+| appointment_date | DATE          | -    | NOT NULL            |
+| notes            | TEXT          | -    | -                   |
+| status           | VARCHAR       | 50   | DEFAULT 'Pending'   |
+| created_at       | TIMESTAMP     | -    | DEFAULT CURRENT_TIMESTAMP |
++------------------+---------------+------+---------------------+
+
+Table 2.5: Tickets Schema
++-------------+---------------+------+---------------------+
+| Attribute   | Data Type     | Size | Constraints         |
++-------------+---------------+------+---------------------+
+| id          | SERIAL        | -    | PRIMARY KEY         |
+| vehicle_id  | INTEGER       | -    | FK → vehicles(id)   |
+| user_id     | INTEGER       | -    | FK → users(id)      |
+| issue       | TEXT          | -    | NOT NULL            |
+| status      | VARCHAR       | 50   | DEFAULT 'Open'      |
+| created_at  | TIMESTAMP     | -    | DEFAULT CURRENT_TIMESTAMP |
++-------------+---------------+------+---------------------+
+
+
+2.3 Creation of Database and Tables – DDL Commands
+---------------------------------------------------
+
+-- Drop tables (reverse dependency order)
+DROP TABLE IF EXISTS tickets CASCADE;
+DROP TABLE IF EXISTS appointments CASCADE;
+DROP TABLE IF EXISTS service_records CASCADE;
+DROP TABLE IF EXISTS vehicles CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+-- Create Users Table
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  full_name VARCHAR(255) NOT NULL,
+  role VARCHAR(50) DEFAULT 'customer'
+);
+
+-- Create Vehicles Table
+CREATE TABLE vehicles (
+  id SERIAL PRIMARY KEY,
+  type VARCHAR(50) NOT NULL,
+  brand VARCHAR(100) NOT NULL,
+  model VARCHAR(100) NOT NULL,
+  vehicle_id VARCHAR(100) UNIQUE NOT NULL
+);
+
+-- Create Service Records Table
+CREATE TABLE service_records (
+  id SERIAL PRIMARY KEY,
+  vehicle_id INTEGER REFERENCES vehicles(id),
+  service_type VARCHAR(100),
+  service_date DATE,
+  service_interval VARCHAR(100),
+  mileage INTEGER,
+  next_service_date DATE,
+  description TEXT,
+  cost NUMERIC(10,2) DEFAULT 0,
+  technician_name VARCHAR(255),
+  spares_changed TEXT,
+  notes TEXT
+);
+
+-- Create Appointments Table
+CREATE TABLE appointments (
+  id SERIAL PRIMARY KEY,
+  vehicle_id INTEGER REFERENCES vehicles(id),
+  user_id INTEGER REFERENCES users(id),
+  appointment_date DATE NOT NULL,
+  notes TEXT,
+  status VARCHAR(50) DEFAULT 'Pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create Tickets Table
+CREATE TABLE tickets (
+  id SERIAL PRIMARY KEY,
+  vehicle_id INTEGER REFERENCES vehicles(id),
+  user_id INTEGER REFERENCES users(id),
+  issue TEXT NOT NULL,
+  status VARCHAR(50) DEFAULT 'Open',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+2.4 Insertion of Tuples into the Table – DML Commands
+------------------------------------------------------
+
+-- Insert Users
+INSERT INTO users (username, password, full_name, role) VALUES
+  ('admin', 'admin123', 'Admin User', 'admin'),
+  ('john',  'john123',  'John Doe',   'customer'),
+  ('jane',  'jane123',  'Jane Smith', 'customer');
+
+Users Table:
++----+----------+----------+------------+----------+
+| id | username | password | full_name  | role     |
++----+----------+----------+------------+----------+
+| 1  | admin    | admin123 | Admin User | admin    |
+| 2  | john     | john123  | John Doe   | customer |
+| 3  | jane     | jane123  | Jane Smith | customer |
++----+----------+----------+------------+----------+
+
+-- Insert Vehicles (sample — 45 total: 40 Bikes + 5 Cars)
+INSERT INTO vehicles (type, brand, model, vehicle_id) VALUES
+  ('Bike', 'Royal Enfield', 'Classic 350',        'KA-01-AB-1234'),
+  ('Bike', 'Royal Enfield', 'Bullet 350',         'KA-02-CD-5678'),
+  ('Bike', 'Royal Enfield', 'Meteor 350',         'TN-03-EF-9012'),
+  ('Bike', 'Royal Enfield', 'Hunter 350',         'MH-04-GH-3456'),
+  ('Bike', 'Royal Enfield', 'Himalayan 450',      'DL-05-IJ-7890'),
+  ('Bike', 'Royal Enfield', 'Continental GT 650', 'KA-06-KL-2345'),
+  ('Bike', 'Royal Enfield', 'Interceptor 650',    'TN-07-MN-6789'),
+  ('Bike', 'Bajaj', 'Pulsar NS200', 'KA-08-OP-0123'),
+  ('Bike', 'Bajaj', 'Pulsar 220F',  'MH-09-QR-4567'),
+  ('Bike', 'Bajaj', 'Dominar 400',  'DL-10-ST-8901'),
+  ('Bike', 'Bajaj', 'Pulsar RS200', 'KA-11-UV-2345'),
+  ('Bike', 'Bajaj', 'Avenger 220',  'TN-12-WX-6789'),
+  ('Bike', 'KTM', 'Duke 200',      'KA-13-YZ-0123'),
+  ('Bike', 'KTM', 'Duke 390',      'MH-14-AB-4567'),
+  ('Bike', 'KTM', 'RC 200',        'DL-15-CD-8901'),
+  ('Bike', 'KTM', 'RC 390',        'KA-16-EF-2345'),
+  ('Bike', 'KTM', 'Adventure 390', 'TN-17-GH-6789'),
+  ('Bike', 'TVS', 'Apache RTR 200', 'KA-18-IJ-0123'),
+  ('Bike', 'TVS', 'Apache RR 310',  'MH-19-KL-4567'),
+  ('Bike', 'TVS', 'Raider 125',     'DL-20-MN-8901'),
+  ('Bike', 'TVS', 'Ntorq 125',      'KA-21-OP-2345'),
+  ('Bike', 'TVS', 'Jupiter 125',    'TN-22-QR-6789'),
+  ('Bike', 'Honda', 'CB300R',    'KA-23-ST-0123'),
+  ('Bike', 'Honda', 'Hornet 2.0','MH-24-UV-4567'),
+  ('Bike', 'Honda', 'Shine 125', 'DL-25-WX-8901'),
+  ('Bike', 'Honda', 'Activa 6G', 'KA-26-YZ-2345'),
+  ('Bike', 'Honda', 'SP 125',    'TN-27-AB-6789'),
+  ('Bike', 'Yamaha', 'MT-15 V2',     'KA-28-CD-0123'),
+  ('Bike', 'Yamaha', 'R15 V4',       'MH-29-EF-4567'),
+  ('Bike', 'Yamaha', 'FZ-S V4',      'DL-30-GH-8901'),
+  ('Bike', 'Yamaha', 'Fascino 125',  'KA-31-IJ-2345'),
+  ('Bike', 'Yamaha', 'Ray ZR 125',   'TN-32-KL-6789'),
+  ('Bike', 'Suzuki', 'Gixxer 250',     'KA-33-MN-0123'),
+  ('Bike', 'Suzuki', 'V-Strom SX',     'MH-34-OP-4567'),
+  ('Bike', 'Suzuki', 'Access 125',     'DL-35-QR-8901'),
+  ('Bike', 'Suzuki', 'Burgman Street', 'KA-36-ST-2345'),
+  ('Bike', 'Hero', 'Xtreme 160R',   'TN-37-UV-6789'),
+  ('Bike', 'Hero', 'Xpulse 200',    'KA-38-WX-0123'),
+  ('Bike', 'Hero', 'Splendor Plus', 'MH-39-YZ-4567'),
+  ('Bike', 'Hero', 'Pleasure Plus', 'DL-40-AB-8901'),
+  ('Car', 'Maruti Suzuki', 'Swift',  'KA-01-MA-1111'),
+  ('Car', 'Maruti Suzuki', 'Baleno', 'MH-02-MB-2222'),
+  ('Car', 'Hyundai',       'i20',    'TN-03-HC-3333'),
+  ('Car', 'Hyundai',       'Creta',  'DL-04-HD-4444'),
+  ('Car', 'Tata',          'Nexon',  'KA-05-TE-5555');
+
+Vehicles Table (sample rows):
++----+------+----------------+-----------------+--------------+
+| id | type | brand          | model           | vehicle_id   |
++----+------+----------------+-----------------+--------------+
+| 1  | Bike | Royal Enfield  | Classic 350     | KA-01-AB-1234|
+| 2  | Bike | Royal Enfield  | Bullet 350      | KA-02-CD-5678|
+| 8  | Bike | Bajaj          | Pulsar NS200    | KA-08-OP-0123|
+| 41 | Car  | Maruti Suzuki  | Swift           | KA-01-MA-1111|
+| 45 | Car  | Tata           | Nexon           | KA-05-TE-5555|
++----+------+----------------+-----------------+--------------+
+
+-- Insert Appointments
+INSERT INTO appointments (vehicle_id, user_id, appointment_date, notes, status) VALUES
+  (1, 2, '2026-02-15', 'Regular service needed', 'Pending'),
+  (8, 3, '2026-02-20', 'Engine vibration issue', 'Confirmed');
+
+Appointments Table:
++----+------------+---------+------------------+-------------------------+-----------+
+| id | vehicle_id | user_id | appointment_date | notes                   | status    |
++----+------------+---------+------------------+-------------------------+-----------+
+| 1  | 1          | 2       | 2026-02-15       | Regular service needed  | Pending   |
+| 2  | 8          | 3       | 2026-02-20       | Engine vibration issue  | Confirmed |
++----+------------+---------+------------------+-------------------------+-----------+
+
+-- Insert Tickets
+INSERT INTO tickets (vehicle_id, user_id, issue, status) VALUES
+  (1,  2, 'Bike making strange noise from engine',  'Open'),
+  (8,  3, 'Brake pads need replacement',            'Open'),
+  (13, 2, 'Headlight flickering intermittently',    'In Progress');
+
+Tickets Table:
++----+------------+---------+------------------------------------------+-------------+
+| id | vehicle_id | user_id | issue                                    | status      |
++----+------------+---------+------------------------------------------+-------------+
+| 1  | 1          | 2       | Bike making strange noise from engine    | Open        |
+| 2  | 8          | 3       | Brake pads need replacement              | Open        |
+| 3  | 13         | 2       | Headlight flickering intermittently      | In Progress |
++----+------------+---------+------------------------------------------+-------------+
+
+
+================================================================================
+CHAPTER 3
+COMPLEX QUERIES BASED ON THE CONCEPTS OF CONSTRAINTS, SETS, JOINS,
+VIEWS, TRIGGERS AND CURSORS
+================================================================================
+
+3.1 Adding Constraints and Queries Based on Constraints
+--------------------------------------------------------
+
+Question 1: Add a CHECK constraint to ensure vehicle type is either 'Bike' or
+'Car', and query all vehicles that violate this constraint.
+
+SQL Statement:
+  ALTER TABLE vehicles
+  ADD CONSTRAINT chk_vehicle_type CHECK (type IN ('Bike', 'Car'));
+
+  -- Query all bikes
+  SELECT * FROM vehicles WHERE type = 'Bike' ORDER BY brand;
+
+Output: Returns all 40 bike records ordered by brand name.
+
+Question 2: Add a NOT NULL constraint on the issue column of tickets and
+attempt to insert a ticket without an issue.
+
+SQL Statement:
+  ALTER TABLE tickets
+  ALTER COLUMN issue SET NOT NULL;
+
+  -- This will fail due to NOT NULL constraint:
+  INSERT INTO tickets (vehicle_id, user_id, status) VALUES (1, 2, 'Open');
+
+Output: ERROR: null value in column "issue" violates not-null constraint
+
+Question 3: Add a UNIQUE constraint on username and attempt a duplicate insert.
+
+SQL Statement:
+  ALTER TABLE users
+  ADD CONSTRAINT uq_username UNIQUE (username);
+
+  -- This will fail:
+  INSERT INTO users (username, password, full_name, role)
+  VALUES ('admin', 'test123', 'Test User', 'customer');
+
+Output: ERROR: duplicate key value violates unique constraint "uq_username"
+
+
+3.2 Queries Based on Aggregate Functions
+-----------------------------------------
+
+Question 1: Find the total number of vehicles grouped by type and brand.
+
+SQL Statement:
+  SELECT type, brand, COUNT(*) AS vehicle_count
+  FROM vehicles
+  GROUP BY type, brand
+  ORDER BY type, vehicle_count DESC;
+
+Output:
+  +------+----------------+---------------+
+  | type | brand          | vehicle_count |
+  +------+----------------+---------------+
+  | Bike | Royal Enfield  | 7             |
+  | Bike | Bajaj          | 5             |
+  | Bike | KTM            | 5             |
+  | Bike | TVS            | 5             |
+  | Bike | Honda          | 5             |
+  | Bike | Yamaha         | 5             |
+  | Bike | Suzuki         | 4             |
+  | Bike | Hero           | 4             |
+  | Car  | Maruti Suzuki  | 2             |
+  | Car  | Hyundai        | 2             |
+  | Car  | Tata           | 1             |
+  +------+----------------+---------------+
+
+Question 2: Find the total cost, average cost, and count of service records
+per service type.
+
+SQL Statement:
+  SELECT service_type,
+         COUNT(*) AS total_records,
+         SUM(cost) AS total_cost,
+         ROUND(AVG(cost), 2) AS avg_cost,
+         MAX(cost) AS max_cost
+  FROM service_records
+  GROUP BY service_type
+  ORDER BY total_cost DESC;
+
+Output: Returns aggregated service statistics grouped by Maintenance, Repair,
+and Inspection types.
+
+Question 3: Count the number of open tickets per user.
+
+SQL Statement:
+  SELECT u.full_name, COUNT(t.id) AS open_tickets
+  FROM users u
+  LEFT JOIN tickets t ON u.id = t.user_id AND t.status = 'Open'
+  WHERE u.role = 'customer'
+  GROUP BY u.full_name
+  ORDER BY open_tickets DESC;
+
+Output:
+  +------------+--------------+
+  | full_name  | open_tickets |
+  +------------+--------------+
+  | John Doe   | 1            |
+  | Jane Smith | 1            |
+  +------------+--------------+
+
+
+3.3 Complex Queries Based on Sets
+----------------------------------
+
+Question 1: Find vehicles that have both appointments and tickets.
+
+SQL Statement:
+  SELECT v.vehicle_id, v.brand, v.model FROM vehicles v
+  JOIN appointments a ON v.id = a.vehicle_id
+  INTERSECT
+  SELECT v.vehicle_id, v.brand, v.model FROM vehicles v
+  JOIN tickets t ON v.id = t.vehicle_id;
+
+Output:
+  +--------------+----------------+--------------+
+  | vehicle_id   | brand          | model        |
+  +--------------+----------------+--------------+
+  | KA-01-AB-1234| Royal Enfield  | Classic 350  |
+  | KA-08-OP-0123| Bajaj          | Pulsar NS200 |
+  +--------------+----------------+--------------+
+
+Question 2: Find vehicles that have tickets but no appointments.
+
+SQL Statement:
+  SELECT v.vehicle_id, v.brand, v.model FROM vehicles v
+  JOIN tickets t ON v.id = t.vehicle_id
+  EXCEPT
+  SELECT v.vehicle_id, v.brand, v.model FROM vehicles v
+  JOIN appointments a ON v.id = a.vehicle_id;
+
+Output:
+  +--------------+------+----------+
+  | vehicle_id   | brand| model    |
+  +--------------+------+----------+
+  | KA-13-YZ-0123| KTM  | Duke 200 |
+  +--------------+------+----------+
+
+Question 3: Find all vehicles that have either an appointment OR a ticket.
+
+SQL Statement:
+  SELECT v.vehicle_id, v.brand, v.model FROM vehicles v
+  JOIN appointments a ON v.id = a.vehicle_id
+  UNION
+  SELECT v.vehicle_id, v.brand, v.model FROM vehicles v
+  JOIN tickets t ON v.id = t.vehicle_id;
+
+Output: Returns 3 unique vehicles (Classic 350, Pulsar NS200, Duke 200).
+
+
+3.4 Complex Queries Based on Subqueries
+-----------------------------------------
+
+Question 1: Find all vehicles that have no service records.
+
+SQL Statement:
+  SELECT v.vehicle_id, v.brand, v.model
+  FROM vehicles v
+  WHERE v.id NOT IN (
+    SELECT DISTINCT vehicle_id FROM service_records
+  );
+
+Output: Returns all 45 vehicles (since no service records are seeded).
+
+Question 2: Find users who have raised more tickets than the average.
+
+SQL Statement:
+  SELECT u.full_name, COUNT(t.id) AS ticket_count
+  FROM users u
+  JOIN tickets t ON u.id = t.user_id
+  GROUP BY u.full_name
+  HAVING COUNT(t.id) > (
+    SELECT AVG(cnt) FROM (
+      SELECT COUNT(id) AS cnt FROM tickets GROUP BY user_id
+    ) AS avg_tickets
+  );
+
+Output:
+  +----------+--------------+
+  | full_name| ticket_count |
+  +----------+--------------+
+  | John Doe | 2            |
+  +----------+--------------+
+
+Question 3: Find vehicles belonging to brands that have more than 5 models.
+
+SQL Statement:
+  SELECT vehicle_id, brand, model
+  FROM vehicles
+  WHERE brand IN (
+    SELECT brand FROM vehicles GROUP BY brand HAVING COUNT(*) >= 5
+  )
+  ORDER BY brand, model;
+
+Output: Returns vehicles from Royal Enfield (7), Bajaj (5), KTM (5), TVS (5),
+Honda (5), Yamaha (5).
+
+
+3.5 Complex Queries Based on Joins
+-----------------------------------
+
+Question 1: List all tickets with vehicle details and customer names using
+INNER JOIN.
+
+SQL Statement:
+  SELECT t.id AS ticket_id,
+         u.full_name AS customer,
+         v.brand || ' ' || v.model AS vehicle,
+         v.vehicle_id AS reg_no,
+         t.issue,
+         t.status
+  FROM tickets t
+  INNER JOIN users u ON t.user_id = u.id
+  INNER JOIN vehicles v ON t.vehicle_id = v.id
+  ORDER BY t.created_at DESC;
+
+Output:
+  +-----------+------------+--------------------------+--------------+------------------------------------------+-------------+
+  | ticket_id | customer   | vehicle                  | reg_no       | issue                                    | status      |
+  +-----------+------------+--------------------------+--------------+------------------------------------------+-------------+
+  | 1         | John Doe   | Royal Enfield Classic 350| KA-01-AB-1234| Bike making strange noise from engine    | Open        |
+  | 2         | Jane Smith | Bajaj Pulsar NS200       | KA-08-OP-0123| Brake pads need replacement              | Open        |
+  | 3         | John Doe   | KTM Duke 200             | KA-13-YZ-0123| Headlight flickering intermittently      | In Progress |
+  +-----------+------------+--------------------------+--------------+------------------------------------------+-------------+
+
+Question 2: Show all vehicles with their appointment count using LEFT JOIN.
+
+SQL Statement:
+  SELECT v.vehicle_id, v.brand, v.model,
+         COUNT(a.id) AS appointment_count
+  FROM vehicles v
+  LEFT JOIN appointments a ON v.id = a.vehicle_id
+  GROUP BY v.id, v.vehicle_id, v.brand, v.model
+  HAVING COUNT(a.id) > 0
+  ORDER BY appointment_count DESC;
+
+Output:
+  +--------------+----------------+--------------+-------------------+
+  | vehicle_id   | brand          | model        | appointment_count |
+  +--------------+----------------+--------------+-------------------+
+  | KA-01-AB-1234| Royal Enfield  | Classic 350  | 1                 |
+  | KA-08-OP-0123| Bajaj          | Pulsar NS200 | 1                 |
+  +--------------+----------------+--------------+-------------------+
+
+Question 3: List all users with their total tickets and appointments using
+multiple LEFT JOINs.
+
+SQL Statement:
+  SELECT u.full_name,
+         COUNT(DISTINCT t.id) AS total_tickets,
+         COUNT(DISTINCT a.id) AS total_appointments
+  FROM users u
+  LEFT JOIN tickets t ON u.id = t.user_id
+  LEFT JOIN appointments a ON u.id = a.user_id
+  WHERE u.role = 'customer'
+  GROUP BY u.full_name;
+
+Output:
+  +------------+---------------+--------------------+
+  | full_name  | total_tickets | total_appointments |
+  +------------+---------------+--------------------+
+  | John Doe   | 2             | 1                  |
+  | Jane Smith | 1             | 1                  |
+  +------------+---------------+--------------------+
+
+
+3.6 Complex Queries Based on Views
+------------------------------------
+
+Question 1: Create a view showing a vehicle service summary with total costs.
+
+SQL Statement:
+  CREATE VIEW vehicle_service_summary AS
+  SELECT v.vehicle_id,
+         v.brand,
+         v.model,
+         v.type,
+         COUNT(sr.id) AS total_services,
+         COALESCE(SUM(sr.cost), 0) AS total_cost,
+         MAX(sr.service_date) AS last_service_date
+  FROM vehicles v
+  LEFT JOIN service_records sr ON v.id = sr.vehicle_id
+  GROUP BY v.id, v.vehicle_id, v.brand, v.model, v.type;
+
+  SELECT * FROM vehicle_service_summary WHERE total_services > 0;
+
+Output: Returns vehicles with aggregated service statistics.
+
+Question 2: Create a view for customer dashboard showing their tickets and
+appointment counts.
+
+SQL Statement:
+  CREATE VIEW customer_dashboard AS
+  SELECT u.id AS user_id,
+         u.full_name,
+         COUNT(DISTINCT t.id) AS ticket_count,
+         COUNT(DISTINCT a.id) AS appointment_count,
+         SUM(CASE WHEN t.status = 'Open' THEN 1 ELSE 0 END) AS open_tickets
+  FROM users u
+  LEFT JOIN tickets t ON u.id = t.user_id
+  LEFT JOIN appointments a ON u.id = a.user_id
+  WHERE u.role = 'customer'
+  GROUP BY u.id, u.full_name;
+
+  SELECT * FROM customer_dashboard;
+
+Output:
+  +---------+------------+--------------+-------------------+--------------+
+  | user_id | full_name  | ticket_count | appointment_count | open_tickets |
+  +---------+------------+--------------+-------------------+--------------+
+  | 2       | John Doe   | 2            | 1                 | 1            |
+  | 3       | Jane Smith | 1            | 1                 | 1            |
+  +---------+------------+--------------+-------------------+--------------+
+
+Question 3: Create a view showing all open issues across the system.
+
+SQL Statement:
+  CREATE VIEW open_issues AS
+  SELECT 'Ticket' AS issue_type,
+         t.id,
+         v.brand || ' ' || v.model AS vehicle,
+         u.full_name AS customer,
+         t.issue AS description,
+         t.status,
+         t.created_at
+  FROM tickets t
+  JOIN vehicles v ON t.vehicle_id = v.id
+  JOIN users u ON t.user_id = u.id
+  WHERE t.status != 'Closed';
+
+  SELECT * FROM open_issues ORDER BY created_at DESC;
+
+Output: Returns all non-closed tickets with vehicle and customer details.
+
+
+3.7 Complex Queries Based on Triggers
+---------------------------------------
+
+Question 1: Create a trigger that automatically logs when a ticket status
+changes.
+
+SQL Statement:
+  -- Create audit log table
+  CREATE TABLE ticket_audit_log (
+    id SERIAL PRIMARY KEY,
+    ticket_id INTEGER,
+    old_status VARCHAR(50),
+    new_status VARCHAR(50),
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Create trigger function
+  CREATE OR REPLACE FUNCTION log_ticket_status_change()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    IF OLD.status IS DISTINCT FROM NEW.status THEN
+      INSERT INTO ticket_audit_log (ticket_id, old_status, new_status)
+      VALUES (NEW.id, OLD.status, NEW.status);
+    END IF;
+    RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql;
+
+  -- Attach trigger
+  CREATE TRIGGER trg_ticket_status_change
+  AFTER UPDATE ON tickets
+  FOR EACH ROW
+  EXECUTE FUNCTION log_ticket_status_change();
+
+  -- Test: Update ticket status
+  UPDATE tickets SET status = 'Closed' WHERE id = 1;
+  SELECT * FROM ticket_audit_log;
+
+Output:
+  +----+-----------+------------+------------+---------------------+
+  | id | ticket_id | old_status | new_status | changed_at          |
+  +----+-----------+------------+------------+---------------------+
+  | 1  | 1         | Open       | Closed     | 2026-02-10 10:30:00 |
+  +----+-----------+------------+------------+---------------------+
+
+Question 2: Create a trigger to prevent deletion of vehicles that have
+associated service records.
+
+SQL Statement:
+  CREATE OR REPLACE FUNCTION prevent_vehicle_delete()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    IF EXISTS (SELECT 1 FROM service_records WHERE vehicle_id = OLD.id) THEN
+      RAISE EXCEPTION 'Cannot delete vehicle with existing service records';
+    END IF;
+    RETURN OLD;
+  END;
+  $$ LANGUAGE plpgsql;
+
+  CREATE TRIGGER trg_prevent_vehicle_delete
+  BEFORE DELETE ON vehicles
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_vehicle_delete();
+
+Output: Trigger created. Attempting to delete a vehicle with service records
+raises: "Cannot delete vehicle with existing service records"
+
+Question 3: Create a trigger to auto-set the created_at timestamp on ticket
+insertion.
+
+SQL Statement:
+  CREATE OR REPLACE FUNCTION set_ticket_timestamp()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    NEW.created_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql;
+
+  CREATE TRIGGER trg_set_ticket_timestamp
+  BEFORE INSERT ON tickets
+  FOR EACH ROW
+  EXECUTE FUNCTION set_ticket_timestamp();
+
+Output: Trigger created. All new tickets automatically get the current
+timestamp.
+
+
+3.8 Complex Queries Based on Cursors
+--------------------------------------
+
+Question 1: Use a cursor to iterate through all bikes and print their details.
+
+SQL Statement:
+  DO $$
+  DECLARE
+    bike_cursor CURSOR FOR
+      SELECT vehicle_id, brand, model FROM vehicles WHERE type = 'Bike'
+      ORDER BY brand;
+    bike_rec RECORD;
+  BEGIN
+    OPEN bike_cursor;
+    LOOP
+      FETCH bike_cursor INTO bike_rec;
+      EXIT WHEN NOT FOUND;
+      RAISE NOTICE 'Bike: % % (ID: %)',
+        bike_rec.brand, bike_rec.model, bike_rec.vehicle_id;
+    END LOOP;
+    CLOSE bike_cursor;
+  END;
+  $$;
+
+Output: Prints details of all 40 bikes ordered by brand:
+  NOTICE: Bike: Bajaj Pulsar NS200 (ID: KA-08-OP-0123)
+  NOTICE: Bike: Bajaj Pulsar 220F (ID: MH-09-QR-4567)
+  ... (40 lines total)
+
+Question 2: Use a cursor to calculate total tickets per user and update a
+summary.
+
+SQL Statement:
+  DO $$
+  DECLARE
+    user_cursor CURSOR FOR
+      SELECT id, full_name FROM users WHERE role = 'customer';
+    user_rec RECORD;
+    ticket_cnt INTEGER;
+  BEGIN
+    OPEN user_cursor;
+    LOOP
+      FETCH user_cursor INTO user_rec;
+      EXIT WHEN NOT FOUND;
+      SELECT COUNT(*) INTO ticket_cnt
+      FROM tickets WHERE user_id = user_rec.id;
+      RAISE NOTICE 'User: % has % ticket(s)',
+        user_rec.full_name, ticket_cnt;
+    END LOOP;
+    CLOSE user_cursor;
+  END;
+  $$;
+
+Output:
+  NOTICE: User: John Doe has 2 ticket(s)
+  NOTICE: User: Jane Smith has 1 ticket(s)
+
+Question 3: Use a cursor to find vehicles with pending appointments and
+display them.
+
+SQL Statement:
+  DO $$
+  DECLARE
+    appt_cursor CURSOR FOR
+      SELECT v.brand, v.model, v.vehicle_id, a.appointment_date, u.full_name
+      FROM appointments a
+      JOIN vehicles v ON a.vehicle_id = v.id
+      JOIN users u ON a.user_id = u.id
+      WHERE a.status = 'Pending';
+    appt_rec RECORD;
+  BEGIN
+    OPEN appt_cursor;
+    LOOP
+      FETCH appt_cursor INTO appt_rec;
+      EXIT WHEN NOT FOUND;
+      RAISE NOTICE 'Pending: % % (%) on % for %',
+        appt_rec.brand, appt_rec.model, appt_rec.vehicle_id,
+        appt_rec.appointment_date, appt_rec.full_name;
+    END LOOP;
+    CLOSE appt_cursor;
+  END;
+  $$;
+
+Output:
+  NOTICE: Pending: Royal Enfield Classic 350 (KA-01-AB-1234) on 2026-02-15
+  for John Doe
+
+
+================================================================================
+CHAPTER 4
+ANALYZING THE PITFALLS, IDENTIFYING THE DEPENDENCIES, AND APPLYING
+NORMALIZATIONS
+================================================================================
+
+4.1 Analyse the Pitfalls in Relations
+---------------------------------------
+Potential pitfalls in the Vehicle Service Record Database:
+
+1. Insertion Anomaly: Cannot add a service record without first creating a
+   vehicle. This is resolved by having separate vehicle and service_records
+   tables with foreign keys.
+
+2. Deletion Anomaly: Deleting a vehicle could cascade and lose all service
+   history. The CASCADE constraint ensures referential integrity.
+
+3. Update Anomaly: If vehicle brand/model were stored in service_records
+   directly, updating a vehicle's brand would require updating all associated
+   records. Normalization eliminates this.
+
+4. Redundancy: Without normalization, customer name would be repeated across
+   every ticket and appointment row. The users table eliminates this.
+
+
+4.2 First Normal Form (1NF)
+-----------------------------
+
+4.2.1 Identify Dependency:
+All tables have atomic values in each cell. No repeating groups exist.
+Every table has a primary key (id).
+
+4.2.2 Apply Normalization to 1NF:
+The database is already in 1NF:
+- Each column contains only atomic (indivisible) values
+- Each row is unique (identified by primary key)
+- No multi-valued attributes exist
+- No repeating groups
+
+Before 1NF (hypothetical unnormalized):
++----+--------+----------------------------------+
+| id | brand  | services                         |
++----+--------+----------------------------------+
+| 1  | Royal  | Oil Change, Brake Check, Filter  |
++----+--------+----------------------------------+
+
+After 1NF:
++----+--------+
+| id | brand  |
++----+--------+
+| 1  | Royal  |
++----+--------+
+
++----+------------+--------------+
+| id | vehicle_id | service_type |
++----+------------+--------------+
+| 1  | 1          | Oil Change   |
+| 2  | 1          | Brake Check  |
+| 3  | 1          | Filter       |
++----+------------+--------------+
+
+
+4.3 Second Normal Form (2NF)
+------------------------------
+
+4.3.1 Identify Dependency:
+All non-key attributes are fully functionally dependent on the entire
+primary key. No partial dependencies exist since all tables use single-
+column surrogate keys (id).
+
+4.3.2 Apply Normalization to 2NF:
+The database is already in 2NF because:
+- All tables use single-column primary keys (no composite keys)
+- Therefore, no partial dependencies can exist
+- Every non-key attribute depends on the full primary key
+
+Example: In service_records table, all attributes (service_type,
+service_date, cost, etc.) depend entirely on the primary key (id).
+
+
+4.4 Third Normal Form (3NF)
+------------------------------
+
+4.4.1 Identify Dependency:
+No transitive dependencies exist. Non-key attributes do not depend on
+other non-key attributes.
+
+4.4.2 Apply Normalization to 3NF:
+The database is already in 3NF:
+- In vehicles table: brand, model, type, vehicle_id all depend directly
+  on id (PK), not on each other
+- In tickets table: issue, status, created_at depend on id (PK), not on
+  vehicle_id or user_id (which are FKs, not non-key determinants)
+
+Hypothetical violation example (before 3NF):
++----+---------+-----------+-------------------+
+| id | user_id | username  | full_name         |
++----+---------+-----------+-------------------+
+(full_name depends on username, not on ticket id — transitive dependency)
+
+After 3NF: User information is separated into the users table,
+referenced by foreign key user_id.
+
+
+4.5 BCNF (Boyce-Codd Normal Form)
+-----------------------------------
+
+4.5.1 Identify Dependency:
+Every determinant is a candidate key. The only functional dependencies
+are from primary keys and candidate keys (username UNIQUE in users,
+vehicle_id UNIQUE in vehicles).
+
+4.5.2 Apply Normalization to BCNF:
+The database satisfies BCNF:
+- users: id → all attributes; username → all attributes (candidate key)
+- vehicles: id → all attributes; vehicle_id → all attributes (candidate key)
+- Both determinants are candidate keys, satisfying BCNF
+
+
+4.6 Fourth Normal Form (4NF)
+------------------------------
+
+4.6.1 Identify Dependency:
+No multi-valued dependencies exist. Each fact is stored independently.
+
+4.6.2 Apply Normalization to 4NF:
+The database is in 4NF:
+- A vehicle's tickets and appointments are stored in separate tables
+- No single table contains two or more independent multi-valued facts
+- Example: Vehicle → Tickets and Vehicle → Appointments are stored in
+  separate tables (tickets, appointments), not combined
+
+
+4.7 Fifth Normal Form (5NF)
+------------------------------
+
+4.7.1 Identify Dependency:
+No join dependencies exist that aren't implied by candidate keys.
+
+4.7.2 Apply Normalization to 5NF:
+The database is in 5NF:
+- The appointments table naturally combines vehicle_id, user_id, and
+  appointment_date — this is a single fact, not decomposable further
+  without loss
+- No table can be further decomposed into smaller tables and then
+  recombined via joins without information loss
+
+
+================================================================================
+CHAPTER 5
+IMPLEMENTATION OF CONCURRENCY CONTROL AND RECOVERY MECHANISMS
+================================================================================
+
+5.1 Introduction to Transactions
+-----------------------------------
+
+A transaction is a sequence of one or more SQL operations treated as a single
+logical unit of work. Transactions ensure data integrity and consistency in
+the database.
+
+5.1.1 Properties (ACID):
+  A - Atomicity:    All operations complete or none do
+  C - Consistency:  Database moves from one valid state to another
+  I - Isolation:    Concurrent transactions don't interfere
+  D - Durability:   Committed changes persist permanently
+
+5.1.2 States:
+  Active      → Transaction is executing operations
+  Partially   → Final statement executed, awaiting commit
+  Committed   → Changes are permanently saved
+  Failed      → Error detected, cannot proceed
+  Aborted     → Transaction rolled back to prior state
+
+
+5.2 Transaction Control Language (TCL)
+----------------------------------------
+
+5.2.1 SAVEPOINT:
+  Creates a point within a transaction to which you can roll back.
+  Syntax: SAVEPOINT savepoint_name;
+
+5.2.2 COMMIT:
+  Permanently saves all changes made during the transaction.
+  Syntax: COMMIT;
+
+5.2.3 ROLLBACK:
+  Reverts changes to the beginning of the transaction or to a savepoint.
+  Syntax: ROLLBACK; or ROLLBACK TO savepoint_name;
+
+
+5.3 Transactions for Vehicle Service Record Database
+------------------------------------------------------
+
+5.3.1 Transaction 1: Book Appointment with Validation
+
+  BEGIN;
+
+  -- Step 1: Insert a new appointment
+  INSERT INTO appointments (vehicle_id, user_id, appointment_date, notes, status)
+  VALUES (1, 2, '2026-03-01', 'Full bike service', 'Pending');
+
+  SAVEPOINT after_appointment;
+
+  -- Step 2: Try to insert a duplicate (error scenario)
+  INSERT INTO appointments (vehicle_id, user_id, appointment_date, notes, status)
+  VALUES (1, 2, '2026-03-01', 'Duplicate entry', 'Pending');
+
+  -- Step 3: Rollback to savepoint (undo duplicate)
+  ROLLBACK TO after_appointment;
+
+  -- Step 4: Insert a valid second appointment
+  INSERT INTO appointments (vehicle_id, user_id, appointment_date, notes, status)
+  VALUES (8, 3, '2026-03-05', 'Chain lubrication', 'Pending');
+
+  -- Step 5: Commit all valid changes
+  COMMIT;
+
+
+5.3.2 Transaction 2: Raise Ticket and Update Vehicle Status
+
+  BEGIN;
+
+  -- Step 1: Raise a new ticket
+  INSERT INTO tickets (vehicle_id, user_id, issue, status)
+  VALUES (5, 2, 'Front suspension feels loose', 'Open');
+
+  SAVEPOINT after_ticket;
+
+  -- Step 2: Try raising a ticket with invalid vehicle_id
+  INSERT INTO tickets (vehicle_id, user_id, issue, status)
+  VALUES (999, 2, 'Invalid vehicle', 'Open');
+
+  -- Step 3: Rollback invalid insert
+  ROLLBACK TO after_ticket;
+
+  -- Step 4: Update existing ticket status
+  UPDATE tickets SET status = 'In Progress' WHERE id = 1;
+
+  COMMIT;
+
+
+5.3.3 Transaction 3: Add Service Record with Cost Validation
+
+  BEGIN;
+
+  -- Step 1: Add a service record
+  INSERT INTO service_records (vehicle_id, service_type, service_date,
+    description, cost, technician_name, spares_changed)
+  VALUES (1, 'Maintenance', '2026-02-10',
+    'Regular service - oil change and filter', 5000, 'Rajesh Kumar',
+    'Engine Oil, Oil Filter, Air Filter');
+
+  SAVEPOINT after_service;
+
+  -- Step 2: Insert a record with negative cost (invalid)
+  INSERT INTO service_records (vehicle_id, service_type, service_date,
+    description, cost) VALUES (1, 'Repair', '2026-02-10', 'Test', -500);
+
+  -- Step 3: Rollback invalid record
+  ROLLBACK TO after_service;
+
+  -- Step 4: Insert valid second service
+  INSERT INTO service_records (vehicle_id, service_type, service_date,
+    description, cost, technician_name)
+  VALUES (1, 'Inspection', '2026-02-10', 'General inspection', 500,
+    'Amit Sharma');
+
+  COMMIT;
+
+
+5.3.4 Transaction 4: Bulk Update Ticket Statuses
+
+  BEGIN;
+
+  -- Step 1: Close all "Open" tickets
+  UPDATE tickets SET status = 'Closed' WHERE status = 'Open';
+
+  SAVEPOINT after_close_all;
+
+  -- Step 2: Reopen specific ticket (changed mind)
+  UPDATE tickets SET status = 'Open' WHERE id = 2;
+
+  -- Step 3: Commit with selective reopening
+  COMMIT;
+
+
+5.3.5 Transaction 5: Delete Vehicle with Cascading Cleanup
+
+  BEGIN;
+
+  -- Step 1: Delete all tickets for vehicle 45
+  DELETE FROM tickets WHERE vehicle_id = 45;
+
+  SAVEPOINT after_tickets_delete;
+
+  -- Step 2: Delete all appointments for vehicle 45
+  DELETE FROM appointments WHERE vehicle_id = 45;
+
+  SAVEPOINT after_appointments_delete;
+
+  -- Step 3: Delete all service records for vehicle 45
+  DELETE FROM service_records WHERE vehicle_id = 45;
+
+  -- Step 4: Delete the vehicle itself
+  DELETE FROM vehicles WHERE id = 45;
+
+  -- Step 5: Commit entire cascade
+  COMMIT;
+
+
+5.3 Concurrency Control
+-------------------------
+
+5.3.1 Concurrency Control Algorithms:
+Concurrency control ensures that multiple transactions can execute
+simultaneously without compromising data integrity. PostgreSQL uses
+Multi-Version Concurrency Control (MVCC) as its primary mechanism.
+
+5.3.1 Locking Commands:
+
+a. Row-Level Locking – SELECT ... FOR UPDATE
+   Locks specific rows to prevent concurrent modification.
+
+b. Table-Level Locking – LOCK TABLE
+   Locks the entire table for exclusive access.
+
+Lock Modes:
++---------------------+----------------------------------------------------------+
+| Lock Mode           | Description                                              |
++---------------------+----------------------------------------------------------+
+| ROW SHARE           | Allows concurrent access; prevents exclusive table locks |
+| ROW EXCLUSIVE       | Prevents share mode locks. Default for DML operations    |
+| SHARE               | Allows queries but not updates or deletes                |
+| SHARE ROW EXCLUSIVE | More restrictive than SHARE                              |
+| EXCLUSIVE           | Prevents all other access — full table lock               |
++---------------------+----------------------------------------------------------+
+
+c. COMMIT – Release All Locks
+   After COMMIT, all locks held by the transaction are released.
+
+d. ROLLBACK – Undo Changes & Release Locks
+   After ROLLBACK, changes are undone and all locks are released.
+
+5.3.2 Example: Concurrent Appointment Booking
+
+  -- Session 1: Lock the appointment slot to prevent double-booking
+  BEGIN;
+  SELECT * FROM appointments
+  WHERE vehicle_id = 1 AND appointment_date = '2026-02-15'
+  FOR UPDATE;
+
+  -- Session 1 holds the lock while processing...
+  UPDATE appointments SET status = 'Confirmed'
+  WHERE vehicle_id = 1 AND appointment_date = '2026-02-15';
+
+  COMMIT;
+  -- Lock is released after commit
+
+  -- Session 2 (concurrent): Would wait until Session 1 commits
+  BEGIN;
+  SELECT * FROM appointments
+  WHERE vehicle_id = 1 AND appointment_date = '2026-02-15'
+  FOR UPDATE;
+  -- This blocks until Session 1 commits or rolls back
+  COMMIT;
+
+
+================================================================================
+CHAPTER 6
+FRONT-END AND BACK-END CODE OF VEHICLE SERVICE RECORD DATABASE
+================================================================================
+
+6.1 Front-End Module Codes
+----------------------------
+
+The frontend consists of:
+- index.html     : Login page with Admin/Customer portal selection
+- dashboard.html : Main dashboard with navigation and inline scripts
+- css/styles.css : Beige & dark grey themed stylesheet (1160 lines)
+- js/database.js : API client with fetch wrappers and UI helpers
+- js/auth.js     : Authentication, session management, role helpers
+- js/vehicles.js : Vehicle CRUD, customer search with brand/model dropdowns
+- js/services.js : Service record rendering, cards, cost formatting
+- js/appointments.js : Appointment CRUD, status management
+- js/tickets.js  : Ticket CRUD, status management
+
+All frontend JavaScript files use asynchronous fetch() API calls to communicate
+with the Express backend. Session management uses browser sessionStorage.
+
+
+6.2 Database Connectivity
+----------------------------
+
+Database connectivity is established via Sequelize ORM in models.js:
+
+  const { Sequelize } = require('sequelize');
+  require('dotenv').config();
+
+  const sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    },
+    logging: false
+  });
+
+The connection string is stored in .env file:
+  DATABASE_URL=postgresql://neondb_owner:***@ep-ancient-violet-****.us-east-1.aws.neon.tech/neondb?sslmode=require
+
+The Express server (server.js) provides RESTful API endpoints:
+  - POST /api/auth/login         — User authentication
+  - GET/POST/PUT/DELETE /api/vehicles     — Vehicle CRUD
+  - GET/POST/PUT/DELETE /api/services     — Service record CRUD
+  - GET/POST/PUT /api/appointments        — Appointment management
+  - GET/POST/PUT /api/tickets             — Ticket management
+
+Sequelize models define 5 tables with associations:
+  Vehicle.hasMany(ServiceRecord)
+  Vehicle.hasMany(Appointment)
+  Vehicle.hasMany(Ticket)
+  User.hasMany(Appointment)
+  User.hasMany(Ticket)
+
+
+================================================================================
+CHAPTER 7
+RESULTS AND DISCUSSIONS
+================================================================================
+
+7.1 Screenshots of Front-End
+-------------------------------
+(Attach screenshots of the following pages:)
+
+1. Login Page — Portal selection (Admin / Customer)
+2. Login Form — Admin login with demo credentials
+3. Admin Dashboard — Statistics cards showing vehicle counts, service records,
+   maintenance, repairs, inspections, appointments, and open tickets
+4. Admin Vehicles Page — Grid of vehicle cards with Edit/Delete actions
+5. Admin Service Records — Timeline view with service cards showing cost,
+   date, technician, mileage, and spares changed
+6. Admin Appointments Page — Table with status management dropdown
+7. Admin Tickets Page — Table with status management dropdown
+8. Customer Dashboard — Welcome banner, search prompt, my tickets/appointments
+   counts
+9. Customer Vehicle Search — Brand/Model dropdown search form
+10. Customer Search Results — Vehicle details with service history cards
+11. Customer My Appointments — Filtered appointments table
+12. Customer My Tickets — Filtered tickets table
+
+7.2 Screenshots of Database
+------------------------------
+(Attach screenshots of the following from Neon PostgreSQL console:)
+
+1. Users table data
+2. Vehicles table data (showing sample bikes and cars)
+3. Service Records table data
+4. Appointments table data
+5. Tickets table data
+6. Database schema / table structure
+
+
+================================================================================
+REFERENCES
+================================================================================
+
+1. PostgreSQL Official Documentation — https://www.postgresql.org/docs/
+2. Sequelize ORM Documentation — https://sequelize.org/docs/v6/
+3. Express.js Documentation — https://expressjs.com/
+4. Node.js Documentation — https://nodejs.org/docs/
+5. Neon PostgreSQL Cloud — https://neon.tech/docs
+6. MDN Web Docs (HTML/CSS/JS) — https://developer.mozilla.org/
+7. Abraham Silberschatz, Henry Korth, S. Sudarshan - "Database System Concepts",
+   7th Edition, McGraw-Hill Education, 2019
+8. Ramez Elmasri, Shamkant B. Navathe - "Fundamentals of Database Systems",
+   7th Edition, Pearson, 2016
+

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Vehicle Service Records</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ============================================
+       Navigation Bar
+       ============================================ -->
+  <nav class="navbar" id="navbar">
+    <div class="brand">Vehicle Service Hub</div>
+    <div class="nav-links" id="navLinks">
+      <!-- Populated dynamically -->
+    </div>
+    <div class="user-info">
+      <span id="userGreeting"></span>
+      <span class="user-badge" id="userBadge"></span>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <!-- ============================================
+       Vehicle Type Selector (shown after login)
+       ============================================ -->
+  <div id="vehicleSelector" class="vehicle-selector hidden">
+    <div>
+      <h2>What do you want to view?</h2>
+      <div class="vehicle-options">
+        <div class="vehicle-option-card" onclick="selectVehicleType('Bike')">
+          <div class="icon">Bike</div>
+          <div class="label">Bike</div>
+        </div>
+        <div class="vehicle-option-card" onclick="selectVehicleType('Car')">
+          <div class="icon">Car</div>
+          <div class="label">Car</div>
+        </div>
+      </div>
+      <p class="text-center mt-3" style="color: var(--text-secondary); font-size: 0.9rem;">
+        You can switch between bike and car views anytime.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============================================
+       Main Dashboard Content
+       ============================================ -->
+  <div id="dashboardContent" class="main-content hidden">
+
+    <!-- Dashboard Overview / Stats -->
+    <div id="sectionDashboard" class="section-panel">
+      <div class="page-header">
+        <h2 id="dashboardTitle">Dashboard Overview</h2>
+        <div class="actions">
+          <button class="btn btn-secondary btn-sm" onclick="switchVehicleType()">Switch Vehicle Type</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmResetDB()" title="Reset to sample data">Reset DB</button>
+        </div>
+      </div>
+
+      <!-- Welcome banner for customers -->
+      <div id="customerWelcome" class="hidden" style="background: linear-gradient(135deg, var(--beige), var(--beige-light)); border-radius: var(--radius); padding: 1.5rem 2rem; margin-bottom: 1.5rem;">
+        <h3 style="margin-bottom: 0.3rem;">Welcome! Search for your vehicle to see service status.</h3>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">Go to <strong>Search Vehicle</strong> to find your bike or car and view its service history.</p>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="stats-row" id="statsRow">
+        <!-- Populated dynamically -->
+      </div>
+
+      <!-- Quick Overview Section -->
+      <div id="quickOverview"></div>
+    </div>
+
+    <!-- Vehicles Section -->
+    <div id="sectionVehicles" class="section-panel hidden">
+      <div class="page-header">
+        <h2 id="vehiclesTitle">Vehicles</h2>
+        <div class="actions" id="vehicleActions">
+          <!-- Admin: Add Vehicle button -->
+        </div>
+      </div>
+      <div id="vehiclesList"></div>
+    </div>
+
+    <!-- Service Records Section -->
+    <div id="sectionServices" class="section-panel hidden">
+      <div id="servicesList"></div>
+    </div>
+
+    <!-- Appointments Section -->
+    <div id="sectionAppointments" class="section-panel hidden">
+      <div id="appointmentsList"></div>
+    </div>
+
+    <!-- Tickets Section -->
+    <div id="sectionTickets" class="section-panel hidden">
+      <div id="ticketsList"></div>
+    </div>
+
+  </div>
+
+  <!-- ============================================
+       Scripts (load sql.js from CDN, then our modules)
+       ============================================ -->
+  <script src="js/database.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/vehicles.js"></script>
+  <script src="js/services.js"></script>
+  <script src="js/appointments.js"></script>
+  <script src="js/tickets.js"></script>
+
+  <script>
+    /* ============================================
+       Dashboard Initialization & Navigation
+       ============================================ */
+
+    // Current active section
+    let currentSection = 'dashboard';
+
+    /**
+     * Initialize the dashboard on page load
+     */
+    async function initDashboard() {
+      // Initialize database first
+      await initDatabase();
+
+      // Check authentication
+      if (!requireAuth()) return;
+
+      const user = getCurrentUser();
+
+      // Setup navbar
+      setupNavbar(user);
+
+      // Check if vehicle type is already selected
+      const selectedType = getSelectedVehicleType();
+      if (selectedType) {
+        showDashboard();
+      } else {
+        showVehicleSelector();
+      }
+    }
+
+    /**
+     * Setup the navigation bar based on user role
+     * @param {Object} user
+     */
+    function setupNavbar(user) {
+      // User greeting and badge
+      document.getElementById('userGreeting').textContent = user.full_name;
+      const badge = document.getElementById('userBadge');
+      badge.textContent = user.role.toUpperCase();
+      badge.className = `user-badge ${user.role}`;
+
+      // Navigation links - customized per role
+      const navLinks = document.getElementById('navLinks');
+      const admin = user.role === 'admin';
+      const links = admin
+        ? [
+            { id: 'dashboard', label: 'Dashboard', section: 'dashboard' },
+            { id: 'vehicles', label: 'Vehicles', section: 'vehicles' },
+            { id: 'services', label: 'Services', section: 'services' },
+            { id: 'appointments', label: 'Appointments', section: 'appointments' },
+            { id: 'tickets', label: 'Tickets', section: 'tickets' },
+          ]
+        : [
+            { id: 'dashboard', label: 'Dashboard', section: 'dashboard' },
+            { id: 'vehicles', label: 'Search Vehicle', section: 'vehicles' },
+            { id: 'appointments', label: 'My Appointments', section: 'appointments' },
+            { id: 'tickets', label: 'My Tickets', section: 'tickets' },
+          ];
+
+      navLinks.innerHTML = links.map(l => `
+        <button data-section="${l.section}" onclick="switchSection('${l.section}')">${l.label}</button>
+      `).join('');
+    }
+
+    /**
+     * Show the vehicle type selector
+     */
+    function showVehicleSelector() {
+      document.getElementById('vehicleSelector').classList.remove('hidden');
+      document.getElementById('dashboardContent').classList.add('hidden');
+    }
+
+    /**
+     * Handle vehicle type selection
+     * @param {string} type - 'Bike' or 'Car'
+     */
+    function selectVehicleType(type) {
+      setSelectedVehicleType(type);
+      showDashboard();
+    }
+
+    /**
+     * Switch vehicle type (show selector again)
+     */
+    function switchVehicleType() {
+      sessionStorage.removeItem('selectedVehicleType');
+      showVehicleSelector();
+    }
+
+    /**
+     * Show the main dashboard
+     */
+    function showDashboard() {
+      document.getElementById('vehicleSelector').classList.add('hidden');
+      document.getElementById('dashboardContent').classList.remove('hidden');
+
+      // Show welcome banner for customers
+      const welcomeBanner = document.getElementById('customerWelcome');
+      if (isCustomer()) {
+        welcomeBanner.classList.remove('hidden');
+      } else {
+        welcomeBanner.classList.add('hidden');
+      }
+
+      switchSection('dashboard');
+    }
+
+    /**
+     * Switch between dashboard sections
+     * @param {string} section - Section name
+     */
+    async function switchSection(section) {
+      currentSection = section;
+
+      // Hide all sections
+      const sections = ['Dashboard', 'Vehicles', 'Services', 'Appointments', 'Tickets'];
+      sections.forEach(s => {
+        document.getElementById(`section${s}`).classList.add('hidden');
+      });
+
+      // Show selected section
+      const sectionId = `section${section.charAt(0).toUpperCase() + section.slice(1)}`;
+      document.getElementById(sectionId).classList.remove('hidden');
+
+      // Update active nav link
+      document.querySelectorAll('.nav-links button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.section === section);
+      });
+
+      // Render section content
+      const vehicleType = getSelectedVehicleType();
+
+      switch (section) {
+        case 'dashboard':
+          await updateDashboardStats();
+          await renderQuickOverview();
+          break;
+        case 'vehicles':
+          const adminUser = isAdmin();
+          document.getElementById('vehiclesTitle').textContent = adminUser
+            ? `${vehicleType || ''} Vehicles`
+            : `Search Your ${vehicleType || ''} Vehicle`;
+          document.getElementById('vehicleActions').innerHTML = adminUser ?
+            `<button class="btn btn-success" onclick="showAddVehicleModal()">Add Vehicle</button>` : '';
+          await renderVehicles();
+          break;
+        case 'services':
+          if (!isAdmin()) {
+            // Customers access service records via vehicle search
+            await switchSection('vehicles');
+            return;
+          }
+          // Check if we're viewing a specific vehicle's records
+          const viewingVehicle = sessionStorage.getItem('viewingVehicleId');
+          if (viewingVehicle) {
+            await renderServiceRecordsForVehicle(parseInt(viewingVehicle));
+            sessionStorage.removeItem('viewingVehicleId');
+          } else {
+            await renderAllServiceRecords();
+          }
+          break;
+        case 'appointments':
+          await renderAppointments();
+          break;
+        case 'tickets':
+          await renderTickets();
+          break;
+      }
+    }
+
+    /**
+     * Update dashboard statistics cards
+     */
+    async function updateDashboardStats() {
+      const statsRow = document.getElementById('statsRow');
+      if (!statsRow) return;
+
+      const vehicleType = getSelectedVehicleType();
+      const admin = isAdmin();
+      const user = getCurrentUser();
+
+      if (admin) {
+        // Admin sees full stats
+        const totalVehicles = await countVehicles(vehicleType);
+        const totalRecords = await countServiceRecords(vehicleType);
+        const totalAppointments = await countAppointments();
+        const openTickets = await countOpenTickets();
+        const maintenanceCount = await countServiceRecordsByType('Maintenance', vehicleType);
+        const repairCount = await countServiceRecordsByType('Repair', vehicleType);
+        const inspectionCount = await countServiceRecordsByType('Inspection', vehicleType);
+
+        statsRow.innerHTML = `
+          <div class="stat-card">
+            <div class="stat-icon">${vehicleType || 'All'}</div>
+            <div class="stat-number">${totalVehicles}</div>
+            <div class="stat-label">${vehicleType || ''} Vehicles</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${totalRecords}</div>
+            <div class="stat-label">Service Records</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${maintenanceCount}</div>
+            <div class="stat-label">Maintenance</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${repairCount}</div>
+            <div class="stat-label">Repairs</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${inspectionCount}</div>
+            <div class="stat-label">Inspections</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${totalAppointments}</div>
+            <div class="stat-label">Appointments</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${openTickets}</div>
+            <div class="stat-label">Open Tickets</div>
+          </div>
+        `;
+      } else {
+        // Customer sees their own stats only
+        const vtQuery = vehicleType ? `&vehicleType=${vehicleType}` : '';
+        const myAppointmentsResult = await apiGet(`/appointments/count?userId=${user.id}${vtQuery}`);
+        const myTicketsResult = await apiGet(`/tickets/count?userId=${user.id}${vtQuery}`);
+        const myOpenTicketsResult = await apiGet(`/tickets/count?userId=${user.id}&status=open${vtQuery}`);
+
+        statsRow.innerHTML = `
+          <div class="stat-card">
+            <div class="stat-number">--</div>
+            <div class="stat-label">Search to View Vehicle</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${myAppointmentsResult.count || 0}</div>
+            <div class="stat-label">My Appointments</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${myTicketsResult.count || 0}</div>
+            <div class="stat-label">My Tickets</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${myOpenTicketsResult.count || 0}</div>
+            <div class="stat-label">Open Tickets</div>
+          </div>
+        `;
+      }
+    }
+
+    /**
+     * Render quick overview on the dashboard
+     */
+    async function renderQuickOverview() {
+      const container = document.getElementById('quickOverview');
+      if (!container) return;
+
+      const admin = isAdmin();
+      const user = getCurrentUser();
+      const vehicleType = getSelectedVehicleType();
+
+      // Recent service records (admin only sees all; customer sees tip)
+      let recentRecordsHTML = '';
+      if (admin) {
+        const typeQuery = vehicleType ? `&vehicleType=${vehicleType}` : '';
+        const recentRecords = await apiGet(`/services/recent?limit=5${typeQuery}`);
+
+        recentRecordsHTML = `
+          <div class="section-panel">
+            <div class="panel-header">
+              <h3>Recent Service Records</h3>
+              <button class="btn btn-sm btn-secondary" onclick="switchSection('services')">View All</button>
+            </div>
+            ${recentRecords.length > 0 ? `
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Vehicle</th>
+                      <th>Date</th>
+                      <th>Service Summary</th>
+                      <th>Technician</th>
+                      <th>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${recentRecords.map(r => `
+                      <tr>
+                        <td>${r.brand} ${r.model}</td>
+                        <td>${formatDate(r.service_date)}</td>
+                        <td>${r.description}</td>
+                        <td>${r.technician_name || '--'}</td>
+                        <td>${r.cost > 0 ? 'Rs.' + Math.round(Number(r.cost)).toLocaleString() : 'Free'}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : '<div class="empty-state"><p>No recent service records</p></div>'}
+          </div>
+        `;
+      } else {
+        recentRecordsHTML = `
+          <div class="section-panel">
+            <div class="panel-header">
+              <h3>Service Records</h3>
+            </div>
+            <div class="card" style="border-left-color: var(--beige-dark); text-align: center; padding: 2rem;">
+              <p style="color: var(--text-secondary);">Use <strong>Search Vehicle</strong> to find your vehicle and view its complete service history.</p>
+              <button class="btn btn-sm btn-primary mt-2" onclick="switchSection('vehicles')">Search Now</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // Recent tickets
+      let html = recentRecordsHTML;
+
+      const vtTicketQuery = vehicleType ? `&vehicleType=${vehicleType}` : '';
+      const recentTickets = await apiGet(admin
+        ? `/tickets/recent?limit=5${vtTicketQuery}`
+        : `/tickets/recent?userId=${user.id}&limit=5${vtTicketQuery}`
+      );
+
+      html += `<!-- Recent Tickets -->
+        <div class="section-panel">
+          <div class="panel-header">
+            <h3>${admin ? 'Recent Tickets' : 'My Recent Tickets'}</h3>
+            <button class="btn btn-sm btn-secondary" onclick="switchSection('tickets')">${admin ? 'View All' : 'View My Tickets'}</button>
+          </div>
+          ${recentTickets.length > 0 ? `
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ticket #</th>
+                    ${admin ? '<th>Customer</th>' : ''}
+                    <th>Vehicle</th>
+                    <th>Issue</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recentTickets.map(t => `
+                    <tr>
+                      <td><strong>TKT-${String(t.id).padStart(4, '0')}</strong></td>
+                      ${admin ? `<td>${t.full_name}</td>` : ''}
+                      <td>${t.brand} ${t.model}</td>
+                      <td>${t.issue}</td>
+                      <td>${getStatusBadge(t.status)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : `<div class="empty-state"><p>${admin ? 'No recent tickets' : 'You have no tickets yet.'}</p></div>`}
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    /**
+     * Confirm database reset
+     */
+    function confirmResetDB() {
+      const body = `
+        <p>This will reset the database to its initial state with sample data.</p>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+          All your changes will be lost. This cannot be undone.
+        </p>
+      `;
+
+      showModal('Reset Database', body, () => {
+        closeModal();
+        resetDatabase();
+      }, 'Reset');
+    }
+
+    // Initialize dashboard when page loads
+    initDashboard();
+  </script>
+
+</body>
+</html>
