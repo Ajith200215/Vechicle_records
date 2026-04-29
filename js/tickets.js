@@ -194,10 +194,17 @@ async function showRaiseTicketModal() {
 
 async function changeTicketStatus(id, status) {
   try {
-    await updateTicketStatus(id, status);
-    showToast(`Ticket status updated to ${status}`);
+    if (status === 'Closed') {
+      await deleteTicket(id);
+      showToast('Ticket closed and removed.');
+    } else {
+      await updateTicketStatus(id, status);
+      showToast(`Ticket status updated to ${status}`);
+    }
     await renderTickets();
-    await updateDashboardStats();
+    if (typeof updateDashboardStats === 'function') {
+      await updateDashboardStats();
+    }
   } catch (err) {
     showToast(err.message, 'error');
   }

@@ -187,9 +187,17 @@ async function showBookAppointmentModal() {
 
 async function changeAppointmentStatus(id, status) {
   try {
-    await updateAppointmentStatus(id, status);
-    showToast(`Appointment status updated to ${status}`);
+    if (status === 'Completed') {
+      await deleteAppointment(id);
+      showToast('Appointment completed and removed.');
+    } else {
+      await updateAppointmentStatus(id, status);
+      showToast(`Appointment status updated to ${status}`);
+    }
     await renderAppointments();
+    if (typeof updateDashboardStats === 'function') {
+      await updateDashboardStats();
+    }
   } catch (err) {
     showToast(err.message, 'error');
   }

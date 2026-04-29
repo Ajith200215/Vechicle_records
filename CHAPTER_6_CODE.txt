@@ -1,0 +1,199 @@
+================================================================================
+CHAPTER 6
+FRONT-END AND BACK-END CODE OF VEHICLE SERVICE RECORD DATABASE
+================================================================================
+
+6.1 Front-End Module Codes
+--------------------------------------------------------------------------------
+
+The frontend consists of HTML, CSS, and Vanilla JavaScript using asynchronous fetch() API calls to communicate with the Express backend.
+
+### 6.1.1 Login Page (index.html)
+This is the entry point of the application, featuring a dynamic portal selection for Admins and Customers.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login — Vehicle Service Records</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="login-container">
+    <!-- Portal Selection -->
+    <div class="login-card" id="portalSelector">
+      <h1>Rev Track</h1>
+      <p class="subtitle">Choose your portal to continue</p>
+      <div class="vehicle-options">
+        <div class="vehicle-option-card" onclick="selectPortal('admin')">
+          <div class="label">Admin Portal</div>
+        </div>
+        <div class="vehicle-option-card" onclick="selectPortal('customer')">
+          <div class="label">Customer Portal</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Form -->
+    <div class="login-card hidden" id="loginCard">
+      <h1 id="portalTitle">Admin Login</h1>
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+        <p class="login-error" id="loginError"></p>
+      </form>
+    </div>
+  </div>
+  <script src="js/auth.js"></script>
+</body>
+</html>
+```
+
+### 6.1.2 Authentication & Session Management (js/auth.js)
+Manages user sessions via sessionStorage and interacts with the login API.
+
+```javascript
+// Authenticate user via API
+async function authenticateUser(username, password) {
+  try {
+    return await apiPost('/auth/login', { username, password });
+  } catch (err) {
+    return null;
+  }
+}
+
+// Handle login submission
+async function handleLogin(event) {
+  event.preventDefault();
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  
+  const user = await authenticateUser(username, password);
+  if (user) {
+    sessionStorage.setItem('currentUser', JSON.stringify(user));
+    window.location.href = 'dashboard.html';
+  } else {
+    document.getElementById('loginError').textContent = 'Invalid credentials';
+  }
+}
+```
+
+6.2 Database Connectivity
+--------------------------------------------------------------------------------
+
+Database connectivity is established via the Sequelize ORM within `models.js`. It securely connects to a Neon PostgreSQL cloud database using the connection string stored in the `.env` file.
+
+```javascript
+const { Sequelize, DataTypes } = require('sequelize');
+require('dotenv').config();
+
+// Establish Database Connection
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'postgres',
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  },
+  logging: false
+});
+
+// The connection string is stored in .env file:
+// DATABASE_URL=postgresql://neondb_owner:***@ep-ancient-violet-****.us-east-1.aws.neon.tech/neondb?sslmode=require
+```
+
+6.3 Back-End Code
+--------------------------------------------------------------------------------
+
+The Back-End uses Node.js, Express.js, and Sequelize ORM to define the database schema and provide RESTful API endpoints.
+
+### 6.3.1 Database Schema & Associations (models.js)
+Defines the structure of the relational tables.
+
+```javascript
+const User = sequelize.define('User', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  username: { type: DataTypes.STRING, unique: true, allowNull: false },
+  password: { type: DataTypes.STRING, allowNull: false },
+  full_name: { type: DataTypes.STRING, allowNull: false },
+  role: { type: DataTypes.STRING, defaultValue: 'customer' }
+}, { tableName: 'users', timestamps: false });
+
+const Vehicle = sequelize.define('Vehicle', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  type: { type: DataTypes.STRING, allowNull: false },
+  brand: { type: DataTypes.STRING, allowNull: false },
+  model: { type: DataTypes.STRING, allowNull: false },
+  vehicle_id: { type: DataTypes.STRING, unique: true, allowNull: false }
+}, { tableName: 'vehicles', timestamps: false });
+
+// Associations
+Vehicle.hasMany(Appointment, { foreignKey: 'vehicle_id' });
+Appointment.belongsTo(Vehicle, { foreignKey: 'vehicle_id' });
+User.hasMany(Appointment, { foreignKey: 'user_id' });
+Appointment.belongsTo(User, { foreignKey: 'user_id' });
+
+module.exports = { sequelize, User, Vehicle, Appointment };
+```
+
+### 6.3.2 Express Server and API Routes (server.js)
+Handles incoming HTTP requests and performs CRUD operations on the database.
+
+```javascript
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { sequelize, User, Vehicle, Appointment } = require('./models');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Authentication Route
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await User.findOne({ where: { username, password } });
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch all Vehicles
+app.get('/api/vehicles', async (req, res) => {
+  try {
+    const vehicles = await Vehicle.findAll();
+    res.json(vehicles);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manage Appointments
+app.delete('/api/appointments/:id', async (req, res) => {
+  try {
+    await Appointment.destroy({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Start Server
+async function start() {
+  await sequelize.sync();
+  app.listen(3000, () => console.log('Server running on port 3000'));
+}
+start();
+```

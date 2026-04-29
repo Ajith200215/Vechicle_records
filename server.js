@@ -46,6 +46,35 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/register
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, full_name } = req.body;
+    
+    // Check if username already exists
+    const existingUser = await User.findOne({ where: { username } });
+    if (existingUser) {
+      return res.status(409).json({ error: 'Username already exists' });
+    }
+
+    // Create the user with 'customer' role
+    const newUser = await User.create({
+      username,
+      password,
+      full_name,
+      role: 'customer' // Default role
+    });
+
+    // Don't send password back
+    const { password: _, ...userWithoutPassword } = newUser.toJSON();
+    
+    res.status(201).json(userWithoutPassword);
+  } catch (err) {
+    console.error('Registration error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ============================================
    VEHICLE ROUTES
    ============================================ */

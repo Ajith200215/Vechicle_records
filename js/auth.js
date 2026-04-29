@@ -18,6 +18,22 @@ async function authenticateUser(username, password) {
 }
 
 /**
+ * Register new user via API
+ * @param {string} username
+ * @param {string} password
+ * @param {string} full_name
+ * @returns {Promise<Object|null>}
+ */
+async function registerUser(username, password, full_name) {
+  try {
+    return await apiPost('/auth/register', { username, password, full_name });
+  } catch (err) {
+    // Return null to signify error (apiPost should have already shown toast)
+    return null;
+  }
+}
+
+/**
  * Store user session in sessionStorage
  */
 function setSession(user) {

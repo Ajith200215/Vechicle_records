@@ -157,3 +157,231 @@ INSERT INTO tickets (vehicle_id, user_id, issue, status) VALUES
   (1,  2, 'Bike making strange noise from engine',  'Open'),
   (8,  3, 'Brake pads need replacement',            'Open'),
   (13, 2, 'Headlight flickering intermittently',    'In Progress');
+
+
+-- ============================================
+-- 1. DML, CONSTRAINTS, AND SETS
+-- ============================================
+
+-- DML: Insert a new service record (INSERT)
+INSERT INTO service_records (vehicle_id, service_type, service_date, description, cost, technician_name) 
+VALUES (1, 'Maintenance', CURRENT_DATE, 'Oil change and chain lube', 1500.00, 'Mike');
+
+-- DML: Update ticket status (UPDATE)
+UPDATE tickets SET status = 'In Progress' WHERE issue LIKE '%noise%';
+
+-- Constraint: Add a check constraint to ensure service cost is not negative
+ALTER TABLE service_records ADD CONSTRAINT chk_cost_positive CHECK (cost >= 0);
+
+-- Sets: Find users who have BOTH a ticket AND an appointment (INTERSECT)
+SELECT user_id FROM tickets
+INTERSECT
+SELECT user_id FROM appointments;
+
+-- Sets: Find vehicles that have appointments BUT NO service records yet (EXCEPT)
+SELECT vehicle_id FROM appointments
+EXCEPT
+SELECT vehicle_id FROM service_records;
+
+
+-- ============================================
+-- 2. COMPLEX QUERIES: SUBQUERIES, JOINS, AND VIEWS
+-- ============================================
+
+-- View: Create a comprehensive view of all pending appointments
+CREATE OR REPLACE VIEW pending_appointments_vw AS
+SELECT 
+    a.id AS appointment_id,
+    a.appointment_date,
+    u.full_name AS customer_name,
+    v.brand,
+    v.model,
+    v.vehicle_id AS registration_number
+FROM appointments a
+JOIN users u ON a.user_id = u.id
+JOIN vehicles v ON a.vehicle_id = v.id
+WHERE a.status = 'Pending';
+
+-- Subquery: Find vehicles that have a service cost higher than the average service cost
+SELECT v.brand, v.model, sr.cost
+FROM service_records sr
+JOIN vehicles v ON sr.vehicle_id = v.id
+WHERE sr.cost > (SELECT AVG(cost) FROM service_records);
+
+-- Join & Aggregation: Get all vehicles and their total number of tickets
+SELECT v.vehicle_id, v.brand, v.model, COUNT(t.id) AS total_tickets
+FROM vehicles v
+LEFT JOIN tickets t ON v.id = t.vehicle_id
+GROUP BY v.id, v.vehicle_id, v.brand, v.model
+ORDER BY total_tickets DESC;
+
+
+-- ============================================
+-- 3. FUNCTIONS, TRIGGERS, CURSORS, AND EXCEPTION HANDLING
+-- ============================================
+
+-- Cursor & Exception Handling: Function to calculate total lifetime service cost safely
+CREATE OR REPLACE FUNCTION get_total_vehicle_cost(p_vehicle_id INTEGER) 
+RETURNS NUMERIC AS $$
+DECLARE
+    total_cost NUMERIC := 0;
+    current_cost NUMERIC;
+    service_cursor CURSOR FOR SELECT cost FROM service_records WHERE vehicle_id = p_vehicle_id;
+BEGIN
+    OPEN service_cursor;
+    LOOP
+        FETCH service_cursor INTO current_cost;
+        EXIT WHEN NOT FOUND;
+        
+        -- Exception Handling block
+        BEGIN
+            IF current_cost IS NOT NULL THEN
+                total_cost := total_cost + current_cost;
+            END IF;
+        EXCEPTION
+            WHEN numeric_value_out_of_range THEN
+                RAISE NOTICE 'Skipping out-of-range cost value.';
+            WHEN OTHERS THEN
+                RAISE NOTICE 'An error occurred while summing costs: %', SQLERRM;
+        END;
+    END LOOP;
+    CLOSE service_cursor;
+    
+    RETURN total_cost;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger & Function: Automatically update an "updated_at" timestamp on the tickets table
+ALTER TABLE tickets ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+CREATE OR REPLACE FUNCTION update_ticket_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_ticket_update
+BEFORE UPDATE ON tickets
+FOR EACH ROW
+EXECUTE FUNCTION update_ticket_timestamp();
+
+
+-- ============================================
+-- MORE QUERIES: DML, CONSTRAINTS, SETS
+-- ============================================
+
+-- Constraint: Ensure appointment dates cannot be placed in the past
+ALTER TABLE appointments ADD CONSTRAINT chk_future_appointment CHECK (appointment_date >= CURRENT_DATE);
+
+-- DML: Delete cancelled appointments older than 1 year
+DELETE FROM appointments WHERE status = 'Cancelled' AND appointment_date < CURRENT_DATE - INTERVAL '1 year';
+
+-- Sets: Get a combined unique list of all vehicles that have EITHER a ticket OR an appointment (UNION)
+SELECT vehicle_id FROM tickets
+UNION
+SELECT vehicle_id FROM appointments;
+
+
+-- ============================================
+-- MORE QUERIES: SUBQUERIES, JOINS, VIEWS
+-- ============================================
+
+-- View & Subquery in JOIN: Create a view for customer service histories 
+CREATE OR REPLACE VIEW customer_service_history_vw AS
+SELECT 
+    u.id AS customer_id,
+    u.full_name,
+    v.brand,
+    v.model,
+    v.vehicle_id,
+    sr.service_type,
+    sr.service_date,
+    sr.cost
+FROM users u
+JOIN vehicles v ON v.id IN (SELECT vehicle_id FROM appointments WHERE user_id = u.id)
+JOIN service_records sr ON sr.vehicle_id = v.id;
+
+-- Subquery with IN: Find vehicles that have had more than 2 service records globally
+SELECT brand, model, vehicle_id 
+FROM vehicles 
+WHERE id IN (
+    SELECT vehicle_id 
+    FROM service_records 
+    GROUP BY vehicle_id 
+    HAVING COUNT(*) > 2
+);
+
+-- Multiple INNER JOINS: Find all open tickets with vehicle details and the assigned user
+SELECT 
+    t.issue, 
+    t.created_at, 
+    v.brand, 
+    v.model, 
+    u.full_name AS reported_by
+FROM tickets t
+INNER JOIN vehicles v ON t.vehicle_id = v.id
+INNER JOIN users u ON t.user_id = u.id
+WHERE t.status = 'Open'
+ORDER BY t.created_at DESC;
+
+
+-- ============================================
+-- MORE QUERIES: FUNCTIONS, TRIGGERS, CURSORS, EXCEPTION HANDLING
+-- ============================================
+
+-- Function & Strict Exception Handling: Safely change a user's password
+CREATE OR REPLACE FUNCTION change_user_password(
+    p_username VARCHAR,
+    p_new_password VARCHAR
+) RETURNS BOOLEAN AS $$
+DECLARE
+    v_user_id INTEGER;
+BEGIN
+    -- Try to find the user using STRICT to enforce finding exactly one row
+    SELECT id INTO STRICT v_user_id FROM users WHERE username = p_username;
+    
+    -- Update the password
+    UPDATE users SET password = p_new_password WHERE id = v_user_id;
+    RETURN TRUE;
+    
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE NOTICE 'User % does not exist. Password not changed.', p_username;
+        RETURN FALSE;
+    WHEN TOO_MANY_ROWS THEN
+        RAISE NOTICE 'Multiple users found with username % (should be impossible due to UNIQUE).', p_username;
+        RETURN FALSE;
+    WHEN OTHERS THEN
+        RAISE NOTICE 'An unexpected error occurred: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger, Cursor & Exception Handling: Prevent booking an appointment if a vehicle has an unresolved "Open" ticket
+CREATE OR REPLACE FUNCTION check_unresolved_tickets()
+RETURNS TRIGGER AS $$
+DECLARE
+    ticket_count INTEGER;
+    ticket_cursor CURSOR FOR 
+        SELECT COUNT(*) FROM tickets 
+        WHERE vehicle_id = NEW.vehicle_id AND status = 'Open';
+BEGIN
+    OPEN ticket_cursor;
+    FETCH ticket_cursor INTO ticket_count;
+    CLOSE ticket_cursor;
+    
+    IF ticket_count > 0 THEN
+        -- Exception Handling: abort the insert using RAISE EXCEPTION
+        RAISE EXCEPTION 'Cannot book an appointment: Vehicle has % unresolved open ticket(s).', ticket_count;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_appointment
+BEFORE INSERT ON appointments
+FOR EACH ROW
+EXECUTE FUNCTION check_unresolved_tickets();

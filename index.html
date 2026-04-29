@@ -15,7 +15,7 @@
   <div class="login-container">
     <!-- Step 1: Portal Selection -->
     <div class="login-card" id="portalSelector">
-      <h1>Vehicle Service Hub</h1>
+      <h1><span style="color: var(--black);">Rev</span> <span style="color: var(--white); background: var(--neon-green); padding: 0 0.4rem; border: 2px solid var(--black); box-shadow: 3px 3px 0 var(--black); border-radius: var(--radius-sm); margin-left: 0.2rem;">Track</span></h1>
       <p class="subtitle">Choose your portal to continue</p>
 
       <div class="vehicle-options" style="margin-top: 1.5rem;">
@@ -73,14 +73,65 @@
         <strong>Demo Credentials</strong>
         <p id="demoCreds"></p>
       </div>
+
+      <p id="showRegisterContainer" style="text-align: center; margin-top: 1rem; display: none;">
+        Don't have an account? <a href="#" onclick="showRegisterForm(event)">Sign Up</a>
+      </p>
+    </div>
+
+    <!-- Step 3: Register Form -->
+    <div class="login-card hidden" id="registerCard">
+      <h1>Create Account</h1>
+      <p class="subtitle">Sign up for the Customer Portal</p>
+
+      <form id="registerForm" onsubmit="handleRegisterSubmit(event)">
+        <div class="form-group">
+          <label for="reg_fullname">Full Name</label>
+          <input
+            type="text"
+            id="reg_fullname"
+            placeholder="Enter your full name"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="reg_username">Username</label>
+          <input
+            type="text"
+            id="reg_username"
+            placeholder="Choose a username"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="reg_password">Password</label>
+          <input
+            type="password"
+            id="reg_password"
+            placeholder="Choose a password"
+            required
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="registerBtn">
+          Sign Up
+        </button>
+
+        <!-- Error Message -->
+        <p class="login-error" id="registerError"></p>
+      </form>
+
+      <button class="back-btn" onclick="backToLogin()" style="margin-top: 1rem;">← Back to Login</button>
     </div>
   </div>
 
   <!-- ============================================
        Scripts
        ============================================ -->
-  <script src="js/database.js"></script>
-  <script src="js/auth.js"></script>
+  <script src="js/database.js?v=3"></script>
+  <script src="js/auth.js?v=3"></script>
 
   <script>
     // Track selected portal
@@ -115,10 +166,12 @@
         document.getElementById('portalTitle').textContent = 'Admin Login';
         document.getElementById('portalSubtitle').textContent = 'Sign in to the Admin Portal';
         document.getElementById('demoCreds').innerHTML = 'Admin: admin / admin123';
+        document.getElementById('showRegisterContainer').style.display = 'none';
       } else {
         document.getElementById('portalTitle').textContent = 'Customer Login';
         document.getElementById('portalSubtitle').textContent = 'Sign in to the Customer Portal';
         document.getElementById('demoCreds').innerHTML = 'Customer 1: john / john123<br>Customer 2: jane / jane123';
+        document.getElementById('showRegisterContainer').style.display = 'block';
       }
 
       // Clear any previous errors
@@ -132,8 +185,59 @@
      */
     function backToPortalSelect() {
       document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('registerCard').classList.add('hidden');
       document.getElementById('portalSelector').classList.remove('hidden');
       selectedPortal = null;
+    }
+
+    /**
+     * Show Registration Form
+     */
+    function showRegisterForm(event) {
+      if (event) event.preventDefault();
+      document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('registerCard').classList.remove('hidden');
+      document.getElementById('registerError').textContent = '';
+      document.getElementById('reg_fullname').value = '';
+      document.getElementById('reg_username').value = '';
+      document.getElementById('reg_password').value = '';
+    }
+
+    /**
+     * Go back to Login Form from Registration
+     */
+    function backToLogin() {
+      document.getElementById('registerCard').classList.add('hidden');
+      document.getElementById('loginCard').classList.remove('hidden');
+    }
+
+    /**
+     * Handle registration submission
+     */
+    async function handleRegisterSubmit(event) {
+      event.preventDefault();
+      
+      const fullname = document.getElementById('reg_fullname').value.trim();
+      const username = document.getElementById('reg_username').value.trim();
+      const password = document.getElementById('reg_password').value.trim();
+      const errorEl = document.getElementById('registerError');
+      
+      if (!fullname || !username || !password) {
+        errorEl.textContent = 'Please fill out all fields.';
+        return;
+      }
+      
+      const user = await registerUser(username, password, fullname);
+      if (!user) {
+        // apiPost typically shows its own toast, but we can provide a fallback
+        errorEl.textContent = 'Registration failed. The username might already be taken.';
+        return;
+      }
+      
+      // Auto-login or just go back to login form
+      showToast('Account created successfully! Please log in.', 'success');
+      document.getElementById('username').value = username;
+      backToLogin();
     }
 
     // Initialize on page load
